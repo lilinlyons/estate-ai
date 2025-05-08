@@ -21,8 +21,35 @@ export default function EstateAgentNegotiator() {
     const [agentNotes, setAgentNotes] = useState('');
 
     const handleGenerate = async () => {
-        // Placeholder logic
-        alert("Generate report with AI summarization and recommendations");
+        if (!surveyFile) {
+            alert("Please upload a survey file.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", surveyFile);
+        formData.append("address", address);
+        formData.append("propertyType", propertyType);
+        formData.append("buyerConcerns", buyerConcerns);
+        formData.append("reductionAmount", reductionAmount);
+        formData.append("agentNotes", agentNotes);
+
+        try {
+            const response = await fetch("http://localhost:3001/api/generate", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+            console.log("Response from backend:", data);
+
+            const generatedText = data.result;
+            console.log("generatedText:", generatedText);
+            alert("Generated Summary:\n" + data.result);
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Failed to generate report");
+        }
     };
 
     return (
@@ -82,6 +109,8 @@ export default function EstateAgentNegotiator() {
             </Card>
 
             <Button className="w-full text-lg" onClick={handleGenerate}>Generate Report</Button>
+            <footer>Disclaimer:
+                By using this tool, you acknowledge that the property address and any names you provide may be processed by OpenAI's ChatGPT API to generate report content. No personal data is stored beyond what is necessary for report generation.</footer>
         </div>
     );
 }
