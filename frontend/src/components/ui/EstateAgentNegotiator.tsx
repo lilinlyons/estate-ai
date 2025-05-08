@@ -41,11 +41,18 @@ export default function EstateAgentNegotiator() {
             });
 
             const data = await response.json();
-            console.log("Response from backend:", data);
+            if (!data.result) throw new Error("Empty response from backend");
 
-            const generatedText = data.result;
-            console.log("generatedText:", generatedText);
-            alert("Generated Summary:\n" + data.result);
+            const blob = new Blob([data.result], { type: "text/plain;charset=utf-8" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", "property-summary.txt");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url); // Clean up
+
         } catch (error) {
             console.error("Error:", error);
             alert("Failed to generate report");
