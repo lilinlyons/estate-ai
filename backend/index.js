@@ -6,7 +6,24 @@ const fs = require('fs');
 const axios = require('axios');
 const pdfParse = require('pdf-parse');
 const app = express();
+const { MongoClient } = require('mongodb');
 const PORT = 3001;
+
+const client = new MongoClient(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+});
+
+
+let db;
+client.connect()
+    .then(() => {
+        db = client.db();
+        console.log('✅ Connected to MongoDB Atlas');
+    })
+    .catch(err => {
+        console.error('❌ MongoDB connection error:', err);
+    });
 
 app.use(cors());
 app.use(express.json());
@@ -16,12 +33,12 @@ app.get('/', (req, res) => {
     res.send('Server is running!');
 });
 
+
 app.listen(PORT, () => {
     console.log(`Server is live on http://localhost:${PORT}`);
 });
 
 const upload = multer({ dest: 'uploads/' });
-
 app.post('/api/generate', upload.single('file'), async (req, res) => {
     try {
         const { address, propertyType, buyerConcerns, reductionAmount, agentNotes } = req.body;
@@ -37,15 +54,15 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
 
         const prompt = `Survey: ${fileContent}
         
-        Buyer Concerns: ${buyerConcerns}
-        Requested Reduction: ${reductionAmount}
-        Agent Notes: ${agentNotes}
-        
-        Please generate a summary of key property issues from the survey. Then, based on the buyer's concerns and requested reduction, provide tailored advice for both the buyer and the seller. Include persuasive arguments, estimated costs for each issue, and negotiation guidance.`;
+Buyer Concerns: ${buyerConcerns}
+Requested Reduction: ${reductionAmount}
+Agent Notes: ${agentNotes}
 
+Please generate a summary of key property issues from the survey. Then, based on the buyer's concerns and requested reduction, provide tailored advice for both the buyer and the seller. Include persuasive arguments, estimated costs for each issue, and negotiation guidance.`;
+        console.log('url is:', process.env.OLLAMA_URL);
 
         const response = await axios.post(
-            'http://localhost:11434/api/generate',
+            'http://host.docker.internal:11434/api/generate',
             { model: 'llama3', prompt },
             { responseType: 'stream' }
         );
@@ -66,12 +83,28 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
             }
         });
 
-        response.data.on('end', () => {
-            res.json({ result: fullResponse });
-        });
+        response.data.on('end', async () => {
+            try {
+                await db.collection('reports').insertOne({
+                    address,
+                    propertyType,
+                    buyerConcerns,
+                    reductionAmount,
+                    agentNotes,
+                    result: fullResponse,
+                    createdAt: new Date()
+                });
 
+                res.json({ result: fullResponse });
+            } catch (err) {
+                console.error('Database insert error:', err);
+                res.status(500).json({ error: 'Database error' });
+            }
+        });
     } catch (err) {
         console.error(err.response?.data || err.message);
         res.status(500).json({ error: 'Something went wrong while contacting Ollama.' });
     }
 });
+
+

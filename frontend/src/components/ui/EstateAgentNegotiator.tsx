@@ -41,6 +41,7 @@ export default function EstateAgentNegotiator() {
             });
 
             const data = await response.json();
+            alert("Successfully uploaded file.");
             if (!data.result) throw new Error("Empty response from backend");
 
             const blob = new Blob([data.result], { type: "text/plain;charset=utf-8" });
@@ -51,7 +52,7 @@ export default function EstateAgentNegotiator() {
             document.body.appendChild(link);
             link.click();
             link.remove();
-            window.URL.revokeObjectURL(url); // Clean up
+            window.URL.revokeObjectURL(url);
 
         } catch (error) {
             console.error("Error:", error);
